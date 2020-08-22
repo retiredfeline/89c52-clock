@@ -6,9 +6,6 @@
 #include <8051.h>
 
 #include "stc89c52.h"
-#ifdef	DS3231
-#include "ds3231.h"
-#endif
 #include "pt.h"
 
 #include "clock.h"
@@ -308,7 +305,7 @@ static void scandisplay(void)
 		currdig = 0;
 }
 
-void main()
+void main(void)
 {
 #ifndef	QX
 	// set SEGMENTS port to push-pull
