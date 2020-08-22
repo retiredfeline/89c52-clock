@@ -335,7 +335,7 @@ void main(void)
 	YEAR = 20;
 #endif
 	brightlevel = 0;
-	brightness = brightlevels[brightlevel];
+	brightness = brightlevels[0];
 	updatedisplay();		// load segments
 	currdig = 0;			// start scan at LHD
 	for (;;) {
