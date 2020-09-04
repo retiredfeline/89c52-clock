@@ -76,7 +76,7 @@ uchar currdig;					// digit to load
 uchar brightlevel, brightness;			// index, value
 
 uchar swstate, swtent, swmin, swrepeat;		// switch handling
-enum Mode { Time, Date } mode;
+enum Mode { Time, Date, Year } mode;
 struct pt pt;
 
 __code uchar font[] = {				// LSB = a, MSB = dp
@@ -156,6 +156,13 @@ static void incmonth(void)
 		MONTH = 1;
 }
 
+static void incyear(void)
+{
+	YEAR++;
+	if (YEAR >= 50)
+		YEAR = 20;
+}
+
 static void bcd2segment(uchar value, uchar *segments)
 {
 	*segments++ = font[(value >> 4) & 0xF];
@@ -188,7 +195,10 @@ static void updatedisplay(void)
 	case Date:
 		bcd2segment(byte2bcd[DATE], &segments[0]);
 		bcd2segment(byte2bcd[MONTH], &segments[2]);
-		bcd2segment(byte2bcd[YEAR], &segments[4]);
+		break;
+	case Year:
+		bcd2segment(0x20, &segments[0]);
+		bcd2segment(byte2bcd[YEAR], &segments[2]);
 		break;
 	}
 }
@@ -210,6 +220,10 @@ static void switchaction()
 #endif
 			break;
 		case Date:
+#ifdef	DS3231
+			mode = Year;		// only for RTC
+#endif
+			break;
 		default:
 			mode = Time;
 			break;
@@ -233,6 +247,12 @@ static void switchaction()
 			writereg(byte2bcd[DATE], DATEIDX);
 #endif
 			break;
+		case Year:
+			incyear();
+#ifdef	DS3231
+			writereg(byte2bcd[YEAR], YEARIDX);
+#endif
+			break;
 		}
 		updatedisplay();
 		break;
@@ -251,6 +271,12 @@ static void switchaction()
 			incmonth();
 #ifdef	DS3231
 			writereg(byte2bcd[MONTH], MONTHIDX);
+#endif
+			break;
+		case Year:
+			incyear();
+#ifdef	DS3231
+			writereg(byte2bcd[YEAR], YEARIDX);
 #endif
 			break;
 		}
