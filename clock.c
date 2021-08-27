@@ -119,6 +119,9 @@ __code uchar brightlevels[] = {
 #define	NLEVELS	(sizeof brightlevels/sizeof brightlevels[0])
 
 __code uchar builddate[] = __DATE__;
+#define	xstring(x)	string(x)
+#define	string(x)	#x
+__code uchar buildflags[] = "BUILDFLAGS=" xstring(BUILDFLAGS);
 
 void timer0(void) __interrupt(1)
 {

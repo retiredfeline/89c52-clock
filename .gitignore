@@ -11,3 +11,5 @@
 *.adb
 *.cdb
 *.omf
+*.hex
+*.rom
