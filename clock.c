@@ -19,6 +19,7 @@
 #define	SEGMENTS	P0
 #define	DIGITS		P2
 #define	SWITCHES	P3
+#define	LOWON
 #else
 #define	SEGMENTS	P2
 #define	SEGMENTS_M0	P2M0
@@ -80,7 +81,7 @@ enum Mode { Time, Date, Year } mode;
 struct pt pt;
 
 __code uchar font[] = {				// LSB = a, MSB = dp
-#ifdef	QX
+#ifdef	LOWON
 	// 0 bit means that segment is on
 	0xc0, 0xf9, 0xa4, 0xb0, 0x99, 0x92, 0x82, 0xf8, 0x80, 0x90,
 	0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf,
@@ -191,11 +192,11 @@ static void updatedisplay(void)
 	case Time:
 		bcd2segment(byte2bcd[HOUR], &segments[0]);
 #ifdef	COLONBLINK
-#ifdef	QX
+#ifdef	LOWON
 		segments[1] &= ~colon;
 #else
 		segments[1] |= colon;
-#endif	// QX
+#endif	// LOWON
 #endif	// COLONBLINK
 		bcd2segment(byte2bcd[MIN], &segments[2]);
 		bcd2segment(byte2bcd[SEC], &segments[4]);
@@ -341,7 +342,7 @@ static void scandisplay(void)
 
 void main(void)
 {
-#ifndef	QX
+#ifndef	LOWON
 	// set SEGMENTS port to push-pull
 	SEGMENTS_M0 = 0xFF;
 #endif

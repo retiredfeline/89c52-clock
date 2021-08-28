@@ -1,6 +1,6 @@
 CC=sdcc
 BUILDFLAGS=-DQX -DX11_059_200
-# BUILDFLAGS=-DX12_000_000
+# BUILDFLAGS=-DX12_000_000 -DLOWON
 CFLAGS=-mmcs51 -Ipt-1.4 $(BUILDFLAGS) -DBUILDFLAGS="$(BUILDFLAGS)"
 # needed for newer 89C52, see https://github.com/grigorig/stcgal/issues/50
 #ARCH=stc12
