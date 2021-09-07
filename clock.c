@@ -56,6 +56,7 @@
 #define	MODE		0x10			// .4
 #define	BRIGHTNESS	0x20			// .5
 #define	SWMASK		(MINBUTTON|HOURBUTTON|MODE|BRIGHTNESS)
+#define	SETTIMEOUT	8			// seconds to set mode expiry
 
 uchar tickdiv, ticks, colon;
 uchar now[7];					// matches DS3231 layout
@@ -74,6 +75,7 @@ uchar now[7];					// matches DS3231 layout
 uchar segments[6];				// 7 segment data of HHMMSS
 uchar currdig;					// digit to load
 uchar brightlevel, brightness;			// index, value
+uchar setactive;				// > 0 in setting mode
 
 uchar swstate, swtent, swmin, swrepeat;		// switch handling
 enum Mode { Time, Date, Year } mode;
@@ -243,6 +245,8 @@ static void switchaction()
 		}
 		break;
 	case MINBUTTON:
+		if (setactive <= 0)
+			break;
 		switch (mode) {
 		case Time:
 			SEC = 0;
@@ -267,9 +271,12 @@ static void switchaction()
 #endif
 			break;
 		}
+		setactive = SETTIMEOUT - 1;	// renew timeout, almost
 		updatedisplay();
 		break;
 	case HOURBUTTON:
+		if (setactive <= 0)
+			break;
 		switch (mode) {
 		case Time:
 #ifdef	DS3231
@@ -293,7 +300,11 @@ static void switchaction()
 #endif
 			break;
 		}
+		setactive = SETTIMEOUT - 1;	// renew timeout, almost
 		updatedisplay();
+		break;
+	case MINBUTTON|HOURBUTTON:	// if both pressed enter set mode
+		setactive = SETTIMEOUT;
 		break;
 	}
 }
@@ -337,8 +348,10 @@ PT_THREAD(switchhandler(struct pt *pt))
 
 static void scandisplay(void)
 {
+	DIGITS = DIGITS_OFF;		// blank display before changing digit
 	SEGMENTS = segments[currdig];
-	DIGITS = digmask[currdig];
+	// blank for one second entering and leaving set mode
+	DIGITS = (setactive == SETTIMEOUT || setactive == 1) ? DIGITS_OFF : digmask[currdig];
 	currdig++;
 	if (currdig > DISPLAYLEN)
 		currdig = 0;
@@ -377,6 +390,7 @@ void main(void)
 	brightness = brightlevels[0];
 	updatedisplay();		// load segments
 	currdig = 0;			// start scan at LHD
+	setactive = 0;			// not in set mode
 	for (;;) {
 		while (tickdiv > 0) {	// PWM
 			if (tickdiv < brightness)
@@ -389,6 +403,8 @@ void main(void)
 			updatedisplay();
 		}
 		if (ticks >= TICKSINSEC) {
+			if (setactive > 0)
+				setactive--;
 			ticks = 0;
 			colon = 0x0;
 #ifdef	DS3231
