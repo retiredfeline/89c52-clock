@@ -304,6 +304,7 @@ static void switchaction()
 		updatedisplay();
 		break;
 	case MINBUTTON|HOURBUTTON:	// if both pressed enter set mode
+		DIGITS = DIGITS_OFF;	// blank immediately
 		setactive = SETTIMEOUT;
 		break;
 	}
