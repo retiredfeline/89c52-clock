@@ -135,7 +135,7 @@ __code uchar builddate[] = __DATE__;
 #define	string(x)	#x
 __code uchar buildflags[] = "BUILDFLAGS=" xstring(BUILDFLAGS);
 
-void timer0(void) __interrupt(1)
+void timer0(void) __interrupt(TF0_VECTOR)
 {
 	tickdiv--;	// TL0 will reload from TH0
 }
@@ -364,7 +364,7 @@ void main(void)
 	// set SEGMENTS port to push-pull
 	SEGMENTS_M0 = 0xFF;
 #endif
-	TMOD = T0_M1;			// mode 2 on T0
+	TMOD = T0_M1 | T1_M0;		// mode 2 on T0, mode 1 on T1
 	TH0 = COUNT_TL0;		// load recurring divisor
 	TL0 = COUNT_TL0;		// overflow next cycle
 	ET0 = 1;			// enable T0 interrupts
