@@ -1,6 +1,6 @@
 CC=sdcc
 BUILDFLAGS=-DQX -DX11_059_200 -DDS3231
-# BUILDFLAGS=-DX12_000_000 -DSIXSEGMENT
+# BUILDFLAGS=-DX12_000_000 -DSIXSEGMENT # -DRAISEDZERO
 CFLAGS=-mmcs51 -Ipt-1.4 $(BUILDFLAGS) -DBUILDFLAGS="$(BUILDFLAGS)"
 # needed for newer 89C52, see https://github.com/grigorig/stcgal/issues/50
 #ARCH=stc12
@@ -34,4 +34,4 @@ else
 endif
 
 clean:
-		rm -f *.{asm,sym,lst,rel,rst,sym,lk,map,mem,ihx,ibn}
+		rm -f *.{asm,sym,lst,rel,rst,sym,lk,map,mem,ihx}
