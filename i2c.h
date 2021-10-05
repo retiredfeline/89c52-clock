@@ -1,6 +1,6 @@
 #define	ADDR	0x68U
-#define	SCL	P1_2
-#define	SDA	P1_3
+#define	SDA	P1_2
+#define	SCL	P1_3
 
 extern void i2cinit(void);
 extern void i2cstart(void);
