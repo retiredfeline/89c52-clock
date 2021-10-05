@@ -13,13 +13,36 @@
 
 #define	EXT_PULLUP
 
+#undef	TIMER_DELAY
+
+#ifdef	TIMER_DELAY
+
+#define	SCANDIV		(65536-5)	// 5 us at least
+
+static void delay5us() __naked
+{
+	TH1 = SCANDIV >> 8;
+	TL1 = SCANDIV & 0xff;
+	TR1 = 1;	// start T1
+	while (TF1 == 0)
+		;	// wait for overflow
+	TR1 = 0;	// turn off T1
+	TF1 = 0;	// clear overflow
+	__asm__("ret");
+}
+
+#else
+
 // call and ret take 2 us each, add a nop for 5 us total
 // add more nops if crystal > 12 MHz
 static void delay5us() __naked
 {
 	__asm__("nop");
+	__asm__("nop");
 	__asm__("ret");
 }
+
+#endif	// TIMER_DELAY
 
 void i2cinit() __naked
 {
