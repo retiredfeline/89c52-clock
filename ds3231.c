@@ -9,7 +9,7 @@ void ds3231_init(void)
 
 inline static uchar bcd2bin(uchar c)
 {
-	return (((c >> 4) & 0xF) * 10) + (c & 0xF);
+	return c - 6 * (c >> 4);
 }
 
 void getnow(uchar *now)
