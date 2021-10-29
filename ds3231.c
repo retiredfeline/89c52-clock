@@ -15,11 +15,9 @@ inline static uchar bcd2bin(uchar c)
 void getnow(uchar *now)
 {
 	i2cstart();
-        i2csendaddr();
-        i2csend(0);
-        i2cstop();
-
-	i2cstart();
+	i2csendaddr();
+	i2csend(0);
+	i2crestart();
 	i2creadaddr();
 	for (int i = 0; i < 6; i++) {
 		*now++ = bcd2bin(i2cread());
@@ -27,14 +25,14 @@ void getnow(uchar *now)
 	}
 	*now++ = bcd2bin(i2cread());
 	i2cnak();
-        i2cstop();
+	i2cstop();
 }
 
 void writereg(uchar value, uchar reg)
 {
 	i2cstart();
-        i2csendaddr();
-        i2csend(reg);
+	i2csendaddr();
+	i2csend(reg);
 	i2csend(value);
 	i2cstop();
 }
