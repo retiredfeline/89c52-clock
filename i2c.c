@@ -141,6 +141,7 @@ unsigned char i2csend(unsigned char data)
 		SCL = 1;
 		delay5us();
 		SCL = 0;
+		delay5us();
 		data <<= 1;
 	}
 	SDA = 1;
@@ -149,6 +150,7 @@ unsigned char i2csend(unsigned char data)
 	i = SDA;
 	delay5us();
 	SCL = 0;
+	delay5us();
 	return i;
 }
 
@@ -163,6 +165,7 @@ unsigned char i2cread()
 		SCL = 1;
 		delay5us();
 		SCL = 0;
+		delay5us();
 	}
 	return data;
 }
