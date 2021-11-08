@@ -19,7 +19,7 @@ void getnow(uchar *now)
 	i2csend(0);
 	i2crestart();
 	i2creadaddr();
-	for (int i = 0; i < 6; i++) {
+	for (uchar i = 0; i < 6; i++) {
 		*now++ = bcd2bin(i2cread());
 		i2cack();
 	}
