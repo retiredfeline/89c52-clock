@@ -1,6 +1,16 @@
 CC=sdcc
-BUILDFLAGS=-DQX -DX11_059_200 -DDS3231
-# BUILDFLAGS=-DX12_000_000 -DSIXSEGMENT # -DRAISEDZERO
+# BUILDFLAGS:
+# -DQX		for testing on QX51-mini development board
+# -DX...	setting to a coded crystal frequency
+# -DDS3231	use DS3231 RTC
+# -DSIXSEGMENT	six segment display
+# -DRAISEDZERO	upper loop used for 0 in six segment mode
+# -DSETMODE	press both hour and minute together to enter set mode
+#
+# Example:
+# BUILDFLAGS=-DQX -DX11_059_200 -DDS3231
+#
+BUILDFLAGS=-DX12_000_000 -DSIXSEGMENT -DRAISEDZERO # -DDS3231
 CFLAGS=-mmcs51 -Ipt-1.4 $(BUILDFLAGS) -DBUILDFLAGS="$(BUILDFLAGS)"
 # needed for newer 89C52, see https://github.com/grigorig/stcgal/issues/50
 #ARCH=stc12

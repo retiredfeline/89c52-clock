@@ -14,18 +14,25 @@ inline static uchar bcd2bin(uchar c)
 
 void getnow(uchar *now)
 {
+	uchar *p = now;
 	i2cstart();
 	i2csendaddr();
 	i2csend(0);
 	i2crestart();
 	i2creadaddr();
 	for (uchar i = 0; i < 6; i++) {
-		*now++ = bcd2bin(i2cread());
+		*p++ = bcd2bin(i2cread());
 		i2cack();
 	}
-	*now++ = bcd2bin(i2cread());
+	*p = bcd2bin(i2cread());
 	i2cnak();
 	i2cstop();
+	if (now[2] >= 24)
+		now[2] = 24;
+	if (now[1] >= 60)
+		now[1] = 60;
+	if (now[0] >= 60)
+		now[0] = 60;
 }
 
 void writereg(uchar value, uchar reg)

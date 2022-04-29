@@ -75,7 +75,9 @@ uchar now[7];					// matches DS3231 layout
 uchar segments[6];				// 7 segment data of HHMMSS
 uchar currdig;					// digit to load
 uchar brightlevel, brightness;			// index, value
+#ifdef	SETMODE
 uchar setactive;				// > 0 in setting mode
+#endif
 
 uchar swstate, swtent, swmin, swrepeat;		// switch handling
 enum Mode { Time, Date, Year } mode;
@@ -245,8 +247,10 @@ static void switchaction()
 		}
 		break;
 	case MINBUTTON:
+#ifdef	SETMODE
 		if (setactive <= 0)
 			break;
+#endif
 		switch (mode) {
 		case Time:
 			SEC = 0;
@@ -271,12 +275,16 @@ static void switchaction()
 #endif
 			break;
 		}
+#ifdef	SETMODE
 		setactive = SETTIMEOUT - 1;	// renew timeout, almost
+#endif
 		updatedisplay();
 		break;
 	case HOURBUTTON:
+#ifdef	SETMODE
 		if (setactive <= 0)
 			break;
+#endif
 		switch (mode) {
 		case Time:
 #ifdef	DS3231
@@ -300,13 +308,17 @@ static void switchaction()
 #endif
 			break;
 		}
+#ifdef	SETMODE
 		setactive = SETTIMEOUT - 1;	// renew timeout, almost
+#endif
 		updatedisplay();
 		break;
+#ifdef	SETMODE
 	case MINBUTTON|HOURBUTTON:	// if both pressed enter set mode
 		DIGITS = DIGITS_OFF;	// blank immediately
 		setactive = SETTIMEOUT;
 		break;
+#endif
 	}
 }
 
@@ -352,7 +364,11 @@ static void scandisplay(void)
 	DIGITS = DIGITS_OFF;		// blank display before changing digit
 	SEGMENTS = segments[currdig];
 	// blank for one second entering and leaving set mode
+#ifdef	SETMODE
 	DIGITS = (setactive == SETTIMEOUT || setactive == 1) ? DIGITS_OFF : digmask[currdig];
+#else
+	DIGITS = digmask[currdig];
+#endif
 	currdig++;
 	if (currdig > DISPLAYLEN)
 		currdig = 0;
@@ -391,7 +407,9 @@ void main(void)
 	brightness = brightlevels[0];
 	updatedisplay();		// load segments
 	currdig = 0;			// start scan at LHD
+#ifdef	SETMODE
 	setactive = 0;			// not in set mode
+#endif
 	for (;;) {
 		while (tickdiv > 0) {	// PWM
 			if (tickdiv < brightness)
@@ -404,8 +422,10 @@ void main(void)
 			updatedisplay();
 		}
 		if (ticks >= TICKSINSEC) {
+#ifdef	SETMODE
 			if (setactive > 0)
 				setactive--;
+#endif
 			ticks = 0;
 			colon = 0x0;
 #ifdef	DS3231
