@@ -51,11 +51,10 @@
 #define	RPTPERIOD	(250 / TICK)		// repeat period
 
 // SWITCHES
-#define	MINBUTTON	0x04			// .2
-#define	HOURBUTTON	0x08			// .3
-#define	MODE		0x10			// .4
-#define	BRIGHTNESS	0x20			// .5
-#define	SWMASK		(MINBUTTON|HOURBUTTON|MODE|BRIGHTNESS)
+#define	MODEBUTTON	0x04			// .2
+#define	INCBUTTON	0x08			// .3
+#define	BRIGHTNESS	0x10			// .4
+#define	SWMASK		(MODEBUTTON|INCBUTTON|BRIGHTNESS)
 #define	SETTIMEOUT	8			// seconds to set mode expiry
 
 uchar tickdiv, ticks, colon;
@@ -75,12 +74,9 @@ uchar now[7];					// matches DS3231 layout
 uchar segments[6];				// 7 segment data of HHMMSS
 uchar currdig;					// digit to load
 uchar brightlevel, brightness;			// index, value
-#ifdef	SETMODE
-uchar setactive;				// > 0 in setting mode
-#endif
 
 uchar swstate, swtent, swmin, swrepeat;		// switch handling
-enum Mode { Time, Date, Year } mode;
+enum Mode { Time = 0, Time_Hour = 1, Time_Minute = 2, Date = 4, Date_Month = 5, Date_Date = 6, Year = 8 } mode;
 struct pt pt;
 
 __code uchar font[] = {				// LSB = a, MSB = dp
@@ -186,6 +182,17 @@ static void bcd2segment(uchar value, uchar *segments)
 	*segments = font[value & 0xF];
 }
 
+static void blankdigits(uchar *digits)
+{
+#ifdef	LOWON
+	digits[0] = 0xff;
+	digits[1] = 0xff;
+#else
+	digits[0] = 0;
+	digits[1] = 0;
+#endif
+}
+
 static void updatedisplay(void)
 {
 #ifdef	TESTING
@@ -198,7 +205,12 @@ static void updatedisplay(void)
 #endif
 	switch (mode) {
 	case Time:
-		bcd2segment(byte2bcd[HOUR], &segments[0]);
+	case Time_Hour:
+	case Time_Minute:
+		if (mode == Time || mode == Time_Hour)
+			bcd2segment(byte2bcd[HOUR], &segments[0]);
+		else
+			blankdigits(&segments[0]);
 #ifdef	COLONBLINK
 #ifdef	LOWON
 		segments[1] &= ~colon;
@@ -206,12 +218,23 @@ static void updatedisplay(void)
 		segments[1] |= colon;
 #endif	// LOWON
 #endif	// COLONBLINK
-		bcd2segment(byte2bcd[MIN], &segments[2]);
+		if (mode == Time || mode == Time_Minute)
+			bcd2segment(byte2bcd[MIN], &segments[2]);
+		else
+			blankdigits(&segments[2]);
 		bcd2segment(byte2bcd[SEC], &segments[4]);
 		break;
 	case Date:
-		bcd2segment(byte2bcd[DATE], &segments[0]);
-		bcd2segment(byte2bcd[MONTH], &segments[2]);
+		bcd2segment(byte2bcd[MONTH], &segments[0]);
+		bcd2segment(byte2bcd[DATE], &segments[2]);
+		break;
+	case Date_Month:
+		bcd2segment(byte2bcd[MONTH], &segments[0]);
+		blankdigits(&segments[2]);
+		break;
+	case Date_Date:
+		blankdigits(&segments[0]);
+		bcd2segment(byte2bcd[DATE], &segments[2]);
 		break;
 	case Year:
 		bcd2segment(0x20, &segments[0]);
@@ -229,16 +252,32 @@ static void switchaction()
 			brightlevel = 0;
 		brightness = brightlevels[brightlevel];
 		break;
-	case MODE:
+	case MODEBUTTON:
 		switch (mode) {
 		case Time:
+			mode = Time_Hour;
+			break;
+		case Time_Hour:
+			mode = Time_Minute;
+			break;
+		case Time_Minute:
 #ifdef	DS3231
 			mode = Date;		// only for RTC
+#else
+			mode = Time;
 #endif
 			break;
 		case Date:
+			mode = Date_Month;
+			break;
+		case Date_Month:
+			mode = Date_Date;
+			break;
+		case Date_Date:
 #ifdef	DS3231
 			mode = Year;		// only for RTC
+#else
+			mode = Time;
 #endif
 			break;
 		default:
@@ -246,13 +285,18 @@ static void switchaction()
 			break;
 		}
 		break;
-	case MINBUTTON:
-#ifdef	SETMODE
-		if (setactive <= 0)
-			break;
-#endif
+	case INCBUTTON:
 		switch (mode) {
-		case Time:
+		case Time_Hour:
+#ifdef	DS3231
+			writereg(byte2bcd[SEC], SECIDX);
+#endif
+			inchour();
+#ifdef	DS3231
+			writereg(byte2bcd[HOUR], HOURIDX);
+#endif
+			break;
+		case Time_Minute:
 			SEC = 0;
 #ifdef	DS3231
 			writereg(0, SECIDX);
@@ -262,63 +306,21 @@ static void switchaction()
 			writereg(byte2bcd[MIN], MINIDX);
 #endif
 			break;
-		case Date:
-			incdate();
-#ifdef	DS3231
-			writereg(byte2bcd[DATE], DATEIDX);
-#endif
-			break;
-		case Year:
-			incyear();
-#ifdef	DS3231
-			writereg(byte2bcd[YEAR], YEARIDX);
-#endif
-			break;
-		}
-#ifdef	SETMODE
-		setactive = SETTIMEOUT - 1;	// renew timeout, almost
-#endif
-		updatedisplay();
-		break;
-	case HOURBUTTON:
-#ifdef	SETMODE
-		if (setactive <= 0)
-			break;
-#endif
-		switch (mode) {
-		case Time:
-#ifdef	DS3231
-			writereg(byte2bcd[SEC], SECIDX);
-#endif
-			inchour();
-#ifdef	DS3231
-			writereg(byte2bcd[HOUR], HOURIDX);
-#endif
-			break;
-		case Date:
+		case Date_Month:
 			incmonth();
 #ifdef	DS3231
 			writereg(byte2bcd[MONTH], MONTHIDX);
 #endif
 			break;
-		case Year:
-			incyear();
+		case Date_Date:
+			incdate();
 #ifdef	DS3231
-			writereg(byte2bcd[YEAR], YEARIDX);
+			writereg(byte2bcd[DATE], DATEIDX);
 #endif
 			break;
 		}
-#ifdef	SETMODE
-		setactive = SETTIMEOUT - 1;	// renew timeout, almost
-#endif
 		updatedisplay();
 		break;
-#ifdef	SETMODE
-	case MINBUTTON|HOURBUTTON:	// if both pressed enter set mode
-		DIGITS = DIGITS_OFF;	// blank immediately
-		setactive = SETTIMEOUT;
-		break;
-#endif
 	}
 }
 
@@ -330,7 +332,7 @@ static inline void reinitstate()
 }
 
 static
-PT_THREAD(switchhandler(struct pt *pt))
+PT_THREAD(switchhandler(struct pt *pt, uchar oneshot))
 {
 	PT_BEGIN(pt);
 	PT_WAIT_UNTIL(pt, swstate != swtent);
@@ -341,6 +343,10 @@ PT_THREAD(switchhandler(struct pt *pt))
 		PT_RESTART(pt);
 	}
 	switchaction();
+	if (oneshot) {
+		reinitstate();
+		PT_RESTART(pt);
+	}
 	PT_WAIT_UNTIL(pt, --swrepeat <= 0 || swstate != swtent);
 	if (swstate != swtent) {		// changed, restart
 		reinitstate();
@@ -364,11 +370,7 @@ static void scandisplay(void)
 	DIGITS = DIGITS_OFF;		// blank display before changing digit
 	SEGMENTS = segments[currdig];
 	// blank for one second entering and leaving set mode
-#ifdef	SETMODE
-	DIGITS = (setactive == SETTIMEOUT || setactive == 1) ? DIGITS_OFF : digmask[currdig];
-#else
 	DIGITS = digmask[currdig];
-#endif
 	currdig++;
 	if (currdig > DISPLAYLEN)
 		currdig = 0;
@@ -401,15 +403,12 @@ void main(void)
 	HOUR = 12;
 	DATE = 1;
 	MONTH = 1;
-	YEAR = 20;
+	YEAR = 22;
 #endif
 	brightlevel = 0;
 	brightness = brightlevels[0];
 	updatedisplay();		// load segments
 	currdig = 0;			// start scan at LHD
-#ifdef	SETMODE
-	setactive = 0;			// not in set mode
-#endif
 	for (;;) {
 		while (tickdiv > 0) {	// PWM
 			if (tickdiv < brightness)
@@ -422,10 +421,6 @@ void main(void)
 			updatedisplay();
 		}
 		if (ticks >= TICKSINSEC) {
-#ifdef	SETMODE
-			if (setactive > 0)
-				setactive--;
-#endif
 			ticks = 0;
 			colon = 0x0;
 #ifdef	DS3231
@@ -444,6 +439,6 @@ void main(void)
 		}
 		scandisplay();
 		swstate = SWITCHES & SWMASK;
-		PT_SCHEDULE(switchhandler(&pt));
+		PT_SCHEDULE(switchhandler(&pt, (~swstate & MODEBUTTON)));
 	}
 }

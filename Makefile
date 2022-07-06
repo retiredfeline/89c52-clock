@@ -5,7 +5,6 @@ CC=sdcc
 # -DDS3231	use DS3231 RTC
 # -DSIXSEGMENT	six segment display
 # -DRAISEDZERO	upper loop used for 0 in six segment mode
-# -DSETMODE	press both hour and minute together to enter set mode
 #
 # Example:
 # BUILDFLAGS=-DQX -DX11_059_200 -DDS3231
