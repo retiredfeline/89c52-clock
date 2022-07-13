@@ -57,7 +57,8 @@
 #define	SWMASK		(MODEBUTTON|INCBUTTON|BRIGHTNESS)
 #define	SETTIMEOUT	8			// seconds to set mode expiry
 
-uchar tickdiv, ticks, colon;
+uchar volatile tickdiv;
+uchar ticks, colon;
 uchar now[7];					// matches DS3231 layout
 #define	SEC		now[0]
 #define	SECIDX		0
