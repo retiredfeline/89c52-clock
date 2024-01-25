@@ -1,54 +1,17 @@
 //
-// 89C52 based clock
+// 89C52 / AVR based clock
 // See README.md and LICENSE.md
 //
 
-#include <8051.h>
-
-#include "stc89c52.h"
 #include "pt.h"
-
 #include "clock.h"
 
 #ifdef	DS3231
 #include "ds3231.h"
 #endif
 
-#ifdef	QX
-#define	SEGMENTS	P0
-#define	DIGITS		P2
-#define	SWITCHES	P3
-#define	LOWON
-#else
-#define	SEGMENTS	P2
-#define	SEGMENTS_M0	P2M0
-#define	DIGITS		P0
-#define	SWITCHES	P3
-#endif	// QX
-
 #define	DISPLAYLEN	4			// digits in display (4/6)
 #define	COLONBLINK				// blink colon or dp
-
-// Crystal frequency
-
-#ifdef	X11_059_200
-#define	COUNTDIV	240			// 11.0592 MHz -> 3840 Hz
-#define	TICKDIV		16			// 3840 Hz -> 240 Hz
-#define	TICKSINSEC	240
-#endif
-
-#ifdef	X12_000_000
-#define	COUNTDIV	250			// 12 MHz -> 4000 Hz
-#define	TICKDIV		16			// 4000 Hz -> 250 Hz
-#define	TICKSINSEC	250
-#endif
-
-#define COUNT_TL0	(256 - COUNTDIV)
-#define	TICKSINHALFSEC	(TICKSINSEC/2)
-#define	TICK		4			// ms, roughly
-#define	DEPMIN		(100 / TICK)		// debounce period
-#define	RPTTHRESH	((400 / TICK) + 1)	// repeat threshold after debounce
-#define	RPTPERIOD	(250 / TICK)		// repeat period
 
 // SWITCHES
 #define	MODEBUTTON	0x04			// .2
@@ -58,7 +21,8 @@
 #define	SETTIMEOUT	8			// seconds to set mode expiry
 
 uchar volatile tickdiv;
-uchar ticks, colon;
+tick_t ticks;
+uchar colon;
 uchar now[7];					// matches DS3231 layout
 #define	SEC		now[0]
 #define	SECIDX		0
@@ -134,11 +98,6 @@ __code uchar builddate[] = __DATE__;
 #define	string(x)	#x
 __code uchar buildflags[] = "BUILDFLAGS=" xstring(BUILDFLAGS);
 
-void timer0(void) __interrupt(TF0_VECTOR)
-{
-	tickdiv--;	// TL0 will reload from TH0
-}
-
 static uchar incmin(void)
 {
 	MIN++;
@@ -169,6 +128,8 @@ static void incmonth(void)
 	if (MONTH > 12)
 		MONTH = 1;
 }
+
+#pragma GCC diagnostic ignored "-Wunused-function"
 
 static void incyear(void)
 {
@@ -319,6 +280,8 @@ static void switchaction()
 			writereg(byte2bcd[DATE], DATEIDX);
 #endif
 			break;
+		default:
+			break;
 		}
 		updatedisplay();
 		break;
@@ -377,18 +340,12 @@ static void scandisplay(void)
 		currdig = 0;
 }
 
+#pragma GCC diagnostic ignored "-Wmain"
+
 void main(void)
 {
-#ifndef	LOWON
-	// set SEGMENTS port to push-pull
-	SEGMENTS_M0 = 0xFF;
-#endif
-	TMOD = T0_M1 | T1_M0;		// mode 2 on T0, mode 1 on T1
-	TH0 = COUNT_TL0;		// load recurring divisor
-	TL0 = COUNT_TL0;		// overflow next cycle
-	ET0 = 1;			// enable T0 interrupts
-	TR0 = 1;			// turn on T0
-	EA = 1;				// enable global interrupts
+	ports_init();
+	timer_init();
 	swstate = SWMASK;		// all buttons up
 	reinitstate();			// switch handler
 	mode = Time;

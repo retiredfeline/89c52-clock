@@ -5,127 +5,88 @@
 // Feel free to improve
 //
 
-#include <8051.h>
-
-#include "stc89c52.h"
-
+#include "clock.h"
 #include "i2c.h"
-
-#define	EXT_PULLUP
-
-#undef	TIMER_DELAY
-
-#ifdef	TIMER_DELAY
-
-#define	SCANDIV		(65536-5)	// 5 us at least
-
-static void delay5us() __naked
-{
-	TH1 = SCANDIV >> 8;
-	TL1 = SCANDIV & 0xff;
-	TR1 = 1;	// start T1
-	while (TF1 == 0)
-		;	// wait for overflow
-	TR1 = 0;	// turn off T1
-	TF1 = 0;	// clear overflow
-	__asm__("ret");
-}
-
-#else
-
-// call and ret take 2 us each, add a nop for 5 us total
-// add more nops if crystal > 12 MHz
-static void delay5us() __naked
-{
-	__asm__("nop");
-	__asm__("nop");
-	__asm__("ret");
-}
-
-#endif	// TIMER_DELAY
 
 void i2cinit() __naked
 {
-#ifdef	EXT_PULLUP
-	P1M0 = 0x0A;		// P1M0.2,3 = 1, open drain
-	P1M1 = 0x0A;		// P1M1.2,3 = 1, open drain
-#endif
-	SDA = 1;
+	pullup_init();
+	SDA_H();
 	delay5us();
-	SCL = 1;
+	SCL_H();
 	delay5us();
-	__asm__("ret");
+	ASMRET();
 }
 
 void i2cstart() __naked
 {
-	SDA = 0;
+	SDA_L();
 	delay5us();
-	SCL = 0;
+	SCL_L();
 	delay5us();
-	__asm__("ret");
+	ASMRET();
 }
 
 void i2crestart() __naked
 {
-	SDA = 1;
+	SDA_H();
 	delay5us();
-	SCL = 1;
+	SCL_H();
 	delay5us();
-	SDA = 0;
+	SDA_L();
 	delay5us();
-	SCL = 0;
+	SCL_L();
 	delay5us();
-	__asm__("ret");
+	ASMRET();
 }
 
 void i2cstop() __naked
 {
-	SCL = 0;
+	SCL_L();
 	delay5us();
-	SDA = 0;
+	SDA_L();
 	delay5us();
-	SCL = 1;
+	SCL_H();
 	delay5us();
-	SDA = 1;
+	SDA_H();
 	delay5us();
-	__asm__("ret");
+	ASMRET();
 }
 
 void i2cack() __naked
 {
-	SDA = 0;
+	SDA_L();
 	delay5us();
-	SCL = 1;
+	SCL_H();
 	delay5us();
-	SCL = 0;
+	SCL_L();
 	delay5us();
-	SDA = 1;
+	SDA_H();
 	delay5us();
-	__asm__("ret");
+	ASMRET();
 }
 
 void i2cnak() __naked
 {
-	SDA = 1;
+	SDA_H();
 	delay5us();
-	SCL = 1;
+	SCL_H();
 	delay5us();
-	SCL = 0;
+	SCL_L();
 	delay5us();
-	SDA = 1;
+	SDA_H();
 	delay5us();
-	__asm__("ret");
+	ASMRET();
 }
 
 unsigned char i2csendaddr()
 {
-	return i2csend(ADDR << 1);
+	return i2csend(I2C_ADDR << 1);
 }
 
 unsigned char i2creadaddr()
 {
-	return i2csend((ADDR << 1) | 1);
+	return i2csend((I2C_ADDR << 1) | 1);
 }
 
 unsigned char i2csend(unsigned char data)
@@ -134,22 +95,22 @@ unsigned char i2csend(unsigned char data)
 
 	for (i = 0; i < 8; i++) {
 		if (data & 0x80)
-			SDA = 1;
+			SDA_H();
 		else
-			SDA = 0;
+			SDA_L();
 		delay5us();
-		SCL = 1;
+		SCL_H();
 		delay5us();
-		SCL = 0;
+		SCL_L();
 		delay5us();
 		data <<= 1;
 	}
-	SDA = 1;
+	SDA_H();
 	delay5us();
-	SCL = 1;
-	i = SDA;
+	SCL_H();
+	i = READ_SDA();
 	delay5us();
-	SCL = 0;
+	SCL_L();
 	delay5us();
 	return i;
 }
@@ -161,10 +122,10 @@ unsigned char i2cread()
 
 	for (i = 0; i < 8; i++) {
 		data <<= 1;
-		data |= SDA;
-		SCL = 1;
+		data |= READ_SDA();
+		SCL_H();
 		delay5us();
-		SCL = 0;
+		SCL_L();
 		delay5us();
 	}
 	return data;
