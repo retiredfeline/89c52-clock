@@ -18,7 +18,7 @@ INCLUDES=
 LIBS=
 PORT=/dev/ttyUSB0
 
-clock.ihx:	clock.rel ds3231.rel i2c.rel stc89c52.rel
+clock.hex:	clock.rel ds3231.rel i2c.rel stc89c52.rel
 		$(CC) -o $@ $^
 
 clock.rel:	clock.c stc89c52.h ds3231.h
@@ -33,10 +33,10 @@ ds3231.rel:	ds3231.c i2c.h
 %.rel:		%.c %.h
 		$(CC) -c $(CFLAGS) $(INCLUDES) $< -o $(<:.c=.rel)
 
-%.ihx:		%.rel
+%.hex:		%.rel
 		$(CC) $(CFLAGS) -o $@ $<
 
-%.flash:	%.ihx
+%.flash:	%.hex
 ifndef ARCH
 		stcgal -p $(PORT) $<
 else
@@ -44,4 +44,4 @@ else
 endif
 
 clean:
-		rm -f *.{asm,sym,lst,rel,rst,sym,lk,map,mem,ihx}
+		rm -f *.{asm,sym,lst,rel,rst,sym,lk,map,mem}
