@@ -39,6 +39,7 @@ uchar now[7];					// matches DS3231 layout
 uchar segments[6];				// 7 segment data of HHMMSS
 uchar currdig;					// digit to load
 uchar brightlevel, brightness;			// index, value
+uint button_timeout;				// ticks before reverting to Time mode
 
 uchar swstate, swtent, swmin, swrepeat;		// switch handling
 enum Mode { Time = 0, Time_Hour = 1, Time_Minute = 2, Date = 4, Date_Month = 5, Date_Date = 6, Year = 8 } mode;
@@ -286,6 +287,10 @@ static void switchaction()
 		updatedisplay();
 		break;
 	}
+	if (mode == Time)
+		button_timeout = 0;
+	else
+		button_timeout = BUTTON_TIMEOUT;
 }
 
 static inline void reinitstate()
@@ -395,6 +400,10 @@ void main(void)
 #endif
 			updatedisplay();
 		}
+		if (button_timeout == 0)
+			mode = Time;
+		else
+			button_timeout--;
 		scandisplay();
 		swstate = SWITCHES & SWMASK;
 		PT_SCHEDULE(switchhandler(&pt, (~swstate & MODEBUTTON)));

@@ -6,6 +6,7 @@ typedef unsigned int	uint;
 #define	DEPMIN		(100 / TICK)		// debounce period
 #define	RPTTHRESH	((400 / TICK) + 1)	// repeat threshold after debounce
 #define	RPTPERIOD	(250 / TICK)		// repeat period
+#define	BUTTON_TIMEOUT	(64000u / TICK)		// revert to Time mode after 64 seconds
 
 #ifdef	STC89C52
 #include "stc89c52.h"
