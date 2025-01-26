@@ -42,7 +42,7 @@ uchar brightlevel, brightness;			// index, value
 uint button_timeout;				// ticks before reverting to Time mode
 
 uchar swstate, swtent, swmin, swrepeat;		// switch handling
-enum Mode { Time = 0, Time_Hour = 1, Time_Minute = 2, Date = 4, Date_Month = 5, Date_Date = 6, Year = 8 } mode;
+enum Mode { Time = 0, Time_Hour = 1, Time_Minute = 2, Date = 4, Date_Month = 5, Date_Date = 6, Year = 7, Bright = 8 } mode;
 struct pt pt;
 
 __code uchar font[] = {				// LSB = a, MSB = dp
@@ -90,7 +90,7 @@ __code uchar byte2bcd[] = {
 // Brightness levels
 __code uchar brightlevels[] = {
 	// 0 is maximum brightness
-	(TICKDIV*7)/8, (TICKDIV*3)/4, TICKDIV/2, 0,
+	0, TICKDIV/2, (TICKDIV*3)/4, (TICKDIV*7)/8,
 };
 #define	NLEVELS	(sizeof brightlevels/sizeof brightlevels[0])
 
@@ -139,7 +139,7 @@ static void incyear(void)
 		YEAR = 20;
 }
 
-static void bcd2segment(uchar value, uchar *segments)
+static void bcd2segment(uint value, uchar *segments)
 {
 	*segments++ = font[(value >> 4) & 0xF];
 	*segments = font[value & 0xF];
@@ -166,25 +166,21 @@ static void updatedisplay(void)
 	if (SEC > 60)
 		SEC = 60;
 #endif
+	blankdigits(&segments[0]);
+	blankdigits(&segments[2]);
+	blankdigits(&segments[4]);
 	switch (mode) {
 	case Time:
+		bcd2segment(byte2bcd[HOUR], &segments[0]);
+		bcd2segment(byte2bcd[MIN], &segments[2]);
+		bcd2segment(byte2bcd[SEC], &segments[4]);
+		break;
 	case Time_Hour:
+		bcd2segment(byte2bcd[HOUR], &segments[0]);
+		bcd2segment(byte2bcd[SEC], &segments[4]);
+		break;
 	case Time_Minute:
-		if (mode == Time || mode == Time_Hour)
-			bcd2segment(byte2bcd[HOUR], &segments[0]);
-		else
-			blankdigits(&segments[0]);
-#ifdef	COLONBLINK
-#ifdef	LOWON
-		segments[1] &= ~colon;
-#else
-		segments[1] |= colon;
-#endif	// LOWON
-#endif	// COLONBLINK
-		if (mode == Time || mode == Time_Minute)
-			bcd2segment(byte2bcd[MIN], &segments[2]);
-		else
-			blankdigits(&segments[2]);
+		bcd2segment(byte2bcd[MIN], &segments[2]);
 		bcd2segment(byte2bcd[SEC], &segments[4]);
 		break;
 	case Date:
@@ -193,17 +189,27 @@ static void updatedisplay(void)
 		break;
 	case Date_Month:
 		bcd2segment(byte2bcd[MONTH], &segments[0]);
-		blankdigits(&segments[2]);
 		break;
 	case Date_Date:
-		blankdigits(&segments[0]);
 		bcd2segment(byte2bcd[DATE], &segments[2]);
 		break;
 	case Year:
 		bcd2segment(0x20, &segments[0]);
 		bcd2segment(byte2bcd[YEAR], &segments[2]);
 		break;
+	case Bright:	// turn on all segments for brightness adjustment
+		bcd2segment(0x88, &segments[0]);
+		bcd2segment(0x88, &segments[2]);
+		bcd2segment(0x88, &segments[4]);
+		break;
 	}
+#ifdef	COLONBLINK
+#ifdef	LOWON
+	segments[1] &= ~colon;
+#else
+	segments[1] |= colon;
+#endif	// LOWON
+#endif	// COLONBLINK
 }
 
 static void switchaction()
@@ -227,7 +233,7 @@ static void switchaction()
 #ifdef	DS3231
 			mode = Date;		// only for RTC
 #else
-			mode = Time;
+			mode = Bright;
 #endif
 			break;
 		case Date:
@@ -237,11 +243,13 @@ static void switchaction()
 			mode = Date_Date;
 			break;
 		case Date_Date:
-#ifdef	DS3231
-			mode = Year;		// only for RTC
-#else
+			mode = Year;
+			break;
+		case Year:
+			mode = Bright;
+			break;
+		case Bright:
 			mode = Time;
-#endif
 			break;
 		default:
 			mode = Time;
@@ -280,6 +288,12 @@ static void switchaction()
 #ifdef	DS3231
 			writereg(byte2bcd[DATE], DATEIDX);
 #endif
+			break;
+		case Bright:
+			brightlevel++;
+			if (brightlevel >= NLEVELS)
+				brightlevel = 0;
+			brightness = brightlevels[brightlevel];
 			break;
 		default:
 			break;
@@ -338,10 +352,9 @@ static void scandisplay(void)
 {
 	DIGITS = DIGITS_OFF;		// blank display before changing digit
 	SEGMENTS = segments[currdig];
-	// blank for one second entering and leaving set mode
 	DIGITS = digmask[currdig];
 	currdig++;
-	if (currdig > DISPLAYLEN)
+	if (currdig >= DISPLAYLEN)
 		currdig = 0;
 }
 
