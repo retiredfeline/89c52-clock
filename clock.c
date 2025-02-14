@@ -319,6 +319,7 @@ PT_THREAD(switchhandler(struct pt *pt, uchar oneshot))
 {
 	PT_BEGIN(pt);
 	PT_WAIT_UNTIL(pt, swstate != swtent);
+	swmin = (swstate == SWMASK) ? DEPMIN : RELMIN;
 	swtent = swstate;
 	PT_WAIT_UNTIL(pt, --swmin <= 0 || swstate != swtent);
 	if (swstate != swtent) {		// changed, restart
