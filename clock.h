@@ -12,7 +12,3 @@ typedef unsigned int	uint;
 #ifdef	STC89C52
 #include "stc89c52.h"
 #endif	// STC89C52
-
-#ifdef	AVR_AT90S8515
-#include "at90s8515.h"
-#endif	// AVR_AT90S8515
