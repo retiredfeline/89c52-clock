@@ -1,4 +1,7 @@
 #include "clock.h"
+#ifdef	DHT22
+#include "dht22.h"
+#endif
 
 void timer0(void) __interrupt(TF0_VECTOR)
 {

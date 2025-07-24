@@ -21,7 +21,8 @@
 
 typedef unsigned char tick_t;
 
-#include <8051.h>
+#include "stc89.h"
+
 /* Port mode bits */
 
 /*  BYTE Register  */
@@ -34,6 +35,16 @@ __sfr __at (0x96) P2M0 ;
 __sfr __at (0xB1) P3M1 ;
 __sfr __at (0xB2) P3M0 ;
 
+/* External interrupt timer 2 */
+__sbit __at (0xAD) ET2 ;
+
+/* T2CON bits */
+__sbit __at (0xCA) TR2 ;
+__sbit __at (0xCB) EXEN2 ;
+__sbit __at (0xCF) TF2 ;
+
+#define	TF2_VECTOR	5
+
 #ifdef	QX
 #define	SEGMENTS	P0
 #define	DIGITS		P2
@@ -45,6 +56,7 @@ __sfr __at (0xB2) P3M0 ;
 #define	DIGITS		P0
 #define	SWITCHES	P3
 #endif	// QX
+
 #define	I2C_ADDR	0x68U
 #define	SCL		P1_2
 #define	SDA		P1_3
@@ -53,6 +65,11 @@ __sfr __at (0xB2) P3M0 ;
 #define	SDA_L()		P1_3 = 0
 #define	SDA_H()		P1_3 = 1
 #define	READ_SDA()	SDA
+
+#define	DHT22D		P1_4
+#define	DHT22L		P1_4 = 0
+#define	DHT22H		P1_4 = 1
+#define	READ_DHT22D	DHT22D
 
 extern uchar volatile tickdiv;
 

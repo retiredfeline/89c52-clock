@@ -10,7 +10,13 @@
 #include "ds3231.h"
 #endif
 
+#ifdef	DHT22
+#include "dht22.h"
+#endif
+
+#ifndef	DISPLAYLEN				// allow it to be overridden from Makefile
 #define	DISPLAYLEN	4			// digits in display (4/6)
+#endif
 #define	COLONBLINK				// blink colon or dp
 
 // SWITCHES
@@ -42,7 +48,10 @@ uchar brightlevel, brightness;			// index, value
 uint button_timeout;				// ticks before reverting to Time mode
 
 uchar swstate, swtent, swmin, swrepeat;		// switch handling
-enum Mode { Time = 0, Time_Hour = 1, Time_Minute = 2, Date = 4, Date_Month = 5, Date_Date = 6, Year = 7, Bright = 8 } mode;
+enum Mode { Time = 0, Time_Hour = 1, Time_Minute = 2, Date = 4, Date_Month = 5, Date_Date = 6, Year = 7, Bright = 8, Temp = 9, Humidity = 10, } mode;
+#ifdef	DHT22
+uchar temperature[2], humidity[2];
+#endif
 struct pt pt;
 
 __code uchar font[] = {				// LSB = a, MSB = dp
@@ -76,6 +85,10 @@ __code uchar font[] = {				// LSB = a, MSB = dp
 #endif	// SIXSEGMENT
 #endif
 };
+
+#ifdef	DHT22
+dhtresult	dht22result;
+#endif
 
 #define	DIGITS_OFF	0xff
 __code uchar digmask[] = {
@@ -212,12 +225,55 @@ static void updatedisplay(void)
 		bcd2segment(0x88, &segments[2]);
 		bcd2segment(0x88, &segments[4]);
 		break;
+#ifdef	DHT22
+	case Temp:
+#if	DISPLAYLEN < 4		// round up
+		int2bcd(dht22result.temperature + 5, temperature);
+#else
+		int2bcd(dht22result.temperature, temperature);
+#endif
+		bcd2segment(temperature[0], &segments[0]);
+		bcd2segment(temperature[1], &segments[2]);
+#ifdef	LOWON
+		if (dht22result.invalid)// indicate invalid reading
+			segments[0] &= ~0x80;
+		segments[3] = 0xff;	// blank 4th digit
+#else
+		if (dht22result.invalid)// indicate invalid reading
+			segments[0] |= 0x80;
+		segments[3] = 0;	// blank 4th digit
+#endif	// LOWON
+		break;
+	case Humidity:
+#if	DISPLAYLEN < 4		// round up
+		int2bcd(dht22result.humidity + 5, humidity);
+#else
+		int2bcd(dht22result.humidity, humidity);
+#endif
+		bcd2segment(humidity[0], &segments[0]);
+		bcd2segment(humidity[1], &segments[2]);
+#ifdef	LOWON
+		if (dht22result.invalid)// indicate invalid reading
+			segments[0] &= ~0x80;
+		segments[1] &= ~0x80;
+		segments[3] = 0xff;
+#else
+		if (dht22result.invalid)// indicate invalid reading
+			segments[0] |= 0x80;
+		segments[1] |= 0x80;
+		segments[3] = 0;
+#endif	// LOWON
+		break;
+#endif
 	}
 #ifdef	COLONBLINK
+#ifdef	DHT22
+	if (mode != Temp && mode != Humidity)
+#endif	// DHT22
 #ifdef	LOWON
-	segments[1] &= ~colon;
+		segments[1] &= ~colon;
 #else
-	segments[1] |= colon;
+		segments[1] |= colon;
 #endif	// LOWON
 #endif	// COLONBLINK
 }
@@ -243,8 +299,12 @@ static void switchaction()
 #ifdef	DS3231
 			mode = Date;		// only for RTC
 #else
+#ifdef	DHT22
+			mode = Temp;
+#else
 			mode = Bright;
-#endif
+#endif	// DHT22
+#endif	// DS3231
 			break;
 		case Date:
 			mode = Date_Month;
@@ -256,10 +316,24 @@ static void switchaction()
 			mode = Year;
 			break;
 		case Year:
+#ifdef	DHT22
+			mode = Temp;
+#else
+			mode = Bright;
+#endif	// DHT22
+			break;
+		case Temp:
+			mode = Humidity;
+			break;
+		case Humidity:
 			mode = Bright;
 			break;
 		case Bright:
+#if	defined(ONLYDHT22) && defined(DHT22)
+			mode = Temp;
+#else
 			mode = Time;
+#endif	// ONLYDHT22 && DHT22
 			break;
 		default:
 			mode = Time;
@@ -271,33 +345,33 @@ static void switchaction()
 		case Time_Hour:
 #ifdef	DS3231
 			writereg(byte2bcd[SEC], SECIDX);
-#endif
+#endif	// DS3231
 			inchour();
 #ifdef	DS3231
 			writereg(byte2bcd[HOUR], HOURIDX);
-#endif
+#endif	// DS3231
 			break;
 		case Time_Minute:
 			SEC = 0;
 #ifdef	DS3231
 			writereg(0, SECIDX);
-#endif
+#endif	// DS3231
 			(void)incmin();
 #ifdef	DS3231
 			writereg(byte2bcd[MIN], MINIDX);
-#endif
+#endif	// DS3231
 			break;
 		case Date_Month:
 			incmonth();
 #ifdef	DS3231
 			writereg(byte2bcd[MONTH], MONTHIDX);
-#endif
+#endif	// DS3231
 			break;
 		case Date_Date:
 			incdate();
 #ifdef	DS3231
 			writereg(byte2bcd[DATE], DATEIDX);
-#endif
+#endif	// DS3231
 			break;
 		case Bright:
 			brightlevel++;
@@ -311,7 +385,11 @@ static void switchaction()
 		updatedisplay();
 		break;
 	}
+#ifdef	DHT22
+	if (mode == Time || mode == Temp || mode == Humidity)
+#else
 	if (mode == Time)
+#endif	// DHT22
 		button_timeout = 0;
 	else
 		button_timeout = BUTTON_TIMEOUT;
@@ -377,7 +455,11 @@ void main(void)
 	timer_init();
 	swstate = SWMASK;		// all buttons up
 	reinitstate();			// switch handler
+#if	defined(ONLYDHT22) && defined(DHT22)
+	mode = Temp;
+#else
 	mode = Time;
+#endif	// ONLYDHT22 && DHT22
 	tickdiv = TICKDIV;
 	ticks = 0;
 	colon = 0x0;
@@ -391,7 +473,10 @@ void main(void)
 	DATE = 1;
 	MONTH = 1;
 	YEAR = 22;
-#endif
+#endif	// DS3231
+#ifdef	DHT22
+	dht22_init();
+#endif	// DHT22
 	brightlevel = 0;
 	brightness = brightlevels[0];
 	updatedisplay();		// load segments
@@ -413,6 +498,10 @@ void main(void)
 #ifdef	DS3231
 			DIGITS = DIGITS_OFF;	// blank display temporarily
 			getnow(now);
+#ifdef	DHT22
+			if (SEC == 0)
+				getdht22data(&dht22result);
+#endif	// DHT22
 			DIGITS = digmask[currdig];
 #else
 			SEC++;
@@ -420,14 +509,23 @@ void main(void)
 				SEC = 0;
 				if (incmin())
 					inchour();
+#ifdef	DHT22
+				DIGITS = DIGITS_OFF;	// blank display temporarily
+				getdht22data(&dht22result);
+				DIGITS = digmask[currdig];
+#endif	// DHT22
 			}
-#endif
+#endif	// DS3231
 			updatedisplay();
 		}
-		if (button_timeout == 0)
-			mode = Time;
-		else
+		if (button_timeout != 0)
 			button_timeout--;
+		else if (!(mode == Temp || mode == Humidity))
+#if	defined(ONLYDHT22) && defined(DHT22)
+			mode = Temp;
+#else
+			mode = Time;
+#endif	// ONLYDHT22 && DHT22
 		scandisplay();
 		swstate = SWITCHES & SWMASK;
 		PT_SCHEDULE(switchhandler(&pt, (~swstate & MODEBUTTON)));
