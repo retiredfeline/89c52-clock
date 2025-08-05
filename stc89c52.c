@@ -50,13 +50,4 @@ void delay5us() __naked
 	__asm__("ret");
 }
 
-#else
-
-void delay5us() __naked
-{
-	// call and ret take 2 us each, add a nop for 5 us total
-	// add more nops if crystal > 12 MHz
-	__asm__("nop\nnop\nret");
-}
-
 #endif	// TIMER_DELAY

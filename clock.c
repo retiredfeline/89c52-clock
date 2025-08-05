@@ -153,13 +153,11 @@ static void incmonth(void)
 		MONTH = 1;
 }
 
-#pragma GCC diagnostic ignored "-Wunused-function"
-
 static void incyear(void)
 {
 	YEAR++;
-	if (YEAR >= 50)
-		YEAR = 20;
+	if (YEAR >= 75)
+		YEAR = 25;
 }
 
 static void bcd2segment(uint value, uchar *segments)
@@ -373,6 +371,12 @@ static void switchaction()
 			writereg(byte2bcd[DATE], DATEIDX);
 #endif	// DS3231
 			break;
+		case Year:
+			incyear();
+#ifdef	DS3231
+			writereg(byte2bcd[YEAR], YEARIDX);
+#endif	// DS3231
+			break;
 		case Bright:
 			brightlevel++;
 			if (brightlevel >= NLEVELS)
@@ -464,6 +468,7 @@ void main(void)
 	ticks = 0;
 	colon = 0x0;
 #ifdef	DS3231
+	uchar sec = 0;
 	SEC = MIN = HOUR = 0;
 	ds3231_init();
 #else
@@ -496,13 +501,16 @@ void main(void)
 			ticks = 0;
 			colon = 0x0;
 #ifdef	DS3231
-			DIGITS = DIGITS_OFF;	// blank display temporarily
-			getnow(now);
+			if (sec <= 0) {
+				getnow(now);
+				sec = 61 - SEC;		// schedule next read just after minute rollover
 #ifdef	DHT22
-			if (SEC == 0)
+				DIGITS = DIGITS_OFF;	// blank display temporarily
 				getdht22data(&dht22result);
+				DIGITS = digmask[currdig];
 #endif	// DHT22
-			DIGITS = digmask[currdig];
+			}
+			sec--;
 #else
 			SEC++;
 			if (SEC >= 60) {

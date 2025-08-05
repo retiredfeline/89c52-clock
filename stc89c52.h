@@ -80,7 +80,11 @@ extern void pullup_init(void);
 
 #undef	TIMER_DELAY
 
+#ifdef	TIMER_DELAY
 extern void delay5us(void) __naked;
+#else
+#define delay5us()	__asm__("nop")
+#endif
 
 #define	ASMRET()	__asm__("ret")
 
